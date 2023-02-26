@@ -51,26 +51,57 @@ async function getPopularTweets(query) {
 
 async function savePopularTweets(query) {
   const tweets = await getPopularTweets(query);
+  const updateTweetDocuments = [];
   const newTweetDocuments = [];
   
   for (const tweet of tweets) {
     const existingTweet = await Tweet.findOne({ 'status.id_str': tweet.status.id_str });
-    if (!existingTweet) {
-      const tweetDocument = new Tweet(tweet);
+    if (existingTweet) {
+      existingTweet.set({
+        status: tweet.status,
+        created_at: new Date(tweet.status.created_at),
+        favorite_count: tweet.status.favorite_count,
+        retweet_count: tweet.status.retweet_count,
+      });
+      updateTweetDocuments.push(existingTweet);
+    } else {
+      const tweetDocument = new Tweet({
+        status: tweet.status,
+        created_at: new Date(tweet.status.created_at),
+        favorite_count: tweet.status.favorite_count,
+        retweet_count: tweet.status.retweet_count,
+      });
       newTweetDocuments.push(tweetDocument);
     }
   }
 
+  let numNewTweets = 0;
+  let numUpdatedTweets = 0;
+
   if (newTweetDocuments.length > 0) {
     try {
       const savedTweets = await Tweet.insertMany(newTweetDocuments);
-      console.log(`${savedTweets.length} new popular tweets saved to MongoDB`);
+      numNewTweets = savedTweets.length;
+      console.log(`${numNewTweets} new popular tweets saved to MongoDB`);
     } catch (error) {
-      console.error('Error saving popular tweets to MongoDB:', error);
+      console.error('Error saving new popular tweets to MongoDB:', error);
       throw error;
     }
-  } else {
-    console.log('No new popular tweets to save');
+  }
+
+  if (updateTweetDocuments.length > 0) {
+    try {
+      const updatedTweets = await Promise.all(updateTweetDocuments.map(tweet => tweet.save()));
+      numUpdatedTweets = updatedTweets.length;
+      console.log(`${numUpdatedTweets} existing popular tweets updated with latest data`);
+    } catch (error) {
+      console.error('Error updating popular tweets with latest data:', error);
+      throw error;
+    }
+  }
+
+  if (numNewTweets === 0 && numUpdatedTweets === 0) {
+    console.log('No new or updated popular tweets to save');
   }
 }
 
@@ -79,7 +110,7 @@ savePopularTweets('ai 🧵 -filter:retweets')
     .catch(error => console.error('Error saving popular tweets to MongoDB:', error));
 
 setInterval(() => {
-  savePopularTweets('ai 🧵')
+  savePopularTweets('ai 🧵 -filter:retweets')
     .then(() => console.log('Popular tweets saved to MongoDB'))
     .catch(error => console.error('Error saving popular tweets to MongoDB:', error));
 }, 4 * 60 * 60 * 1000); // 6 hours
