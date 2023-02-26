@@ -25,10 +25,10 @@ const tweetSchema = new mongoose.Schema({
 
 const Tweet = mongoose.model('Tweet', tweetSchema);
 
-async function getPopularTweets(query) {
+async function getPopularTweets(query, type) {
   const params = {
     q: query,
-    result_type: 'mixed',
+    result_type: type,
     count: 100
   };
 
@@ -49,8 +49,8 @@ async function getPopularTweets(query) {
   }
 }
 
-async function savePopularTweets(query) {
-  const tweets = await getPopularTweets(query);
+async function savePopularTweets(query, type) {
+  const tweets = await getPopularTweets(query, type);
   const updateTweetDocuments = [];
   const newTweetDocuments = [];
   
@@ -105,15 +105,21 @@ async function savePopularTweets(query) {
   }
 }
 
-savePopularTweets('ai 🧵 -filter:retweets')
+savePopularTweets('ai 🧵 -filter:retweets', "mixed")
     .then(() => console.log('Popular tweets saved to MongoDB'))
     .catch(error => console.error('Error saving popular tweets to MongoDB:', error));
 
 setInterval(() => {
-  savePopularTweets('ai 🧵 -filter:retweets')
+  savePopularTweets('ai 🧵 -filter:retweets', "mixed")
     .then(() => console.log('Popular tweets saved to MongoDB'))
     .catch(error => console.error('Error saving popular tweets to MongoDB:', error));
-}, 4 * 60 * 60 * 1000); // 6 hours
+}, 4 * 60 * 60 * 1000); // 4 hours
+
+setInterval(() => {
+  savePopularTweets('ai 🧵 -filter:retweets', "popular")
+    .then(() => console.log('Popular tweets saved to MongoDB'))
+    .catch(error => console.error('Error saving popular tweets to MongoDB:', error));
+}, 24 * 60 * 60 * 1000); // 24 hours
 
 app.get('/most-popular-7-hours', async (req, res) => {
   const now = new Date();
